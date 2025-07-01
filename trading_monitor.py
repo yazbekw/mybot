@@ -8,6 +8,7 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import telegram
 from telegram import ParseMode
+import threading
 
 # إعدادات الاستراتيجية
 SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT', 'ADA/USDT', 'DOGE/USDT']
@@ -21,13 +22,14 @@ TRADE_SIZE = 9  # دولار لكل صفقة
 MAX_OPEN_TRADES = 1  # صفقة واحدة مفتوحة لكل زوج
 
 class TradingMonitor:
-    def __init__(self):
+    def __init__(self, is_headless=False):
         self.performance_log = pd.DataFrame(columns=['symbol', 'signal', 'price', 'time'])
         self.orders_log = pd.DataFrame(columns=['symbol', 'side', 'price', 'amount', 'timestamp'])
         self.indicators_data = {}
         self.is_running = False
         self.coinex_connected = False
         self.client = None
+        self.is_headless = is_headless
         
         # إعداد التسجيل
         logging.basicConfig(
@@ -312,14 +314,18 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
             
             if self.is_running:
                 time.sleep(300)
-        
+                
     def start_monitoring(self):
         if not self.is_running:
             self.is_running = True
             self.log_message("Monitoring started...")
             
-            monitor_thread = threading.Thread(target=self.monitoring_loop, daemon=True)
-            monitor_thread.start()
+            # استخدام threading فقط في الوضع العادي
+            if not self.is_headless:
+                monitor_thread = threading.Thread(target=self.monitoring_loop, daemon=True)
+                monitor_thread.start()
+            else:
+                self.monitoring_loop()
         
     def stop_monitoring(self):
         self.is_running = False
