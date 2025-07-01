@@ -7,8 +7,9 @@ import logging
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import telegram
-from telegram import ParseMode
+from telegram.constants import ParseMode
 import threading
+
 
 # إعدادات الاستراتيجية
 SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT', 'ADA/USDT', 'DOGE/USDT']
@@ -48,6 +49,16 @@ class TradingMonitor:
                 self.log_message("Telegram bot initialized successfully")
             except Exception as e:
                 self.log_message(f"Failed to initialize Telegram bot: {str(e)}", "error")
+                
+        # في ملف trading_monitor.py داخل دالة __init__
+        if hasattr(self, 'tg_bot'):
+            self.tg_bot.send_message(
+                chat_id=self.telegram_chat_id,
+                text="✅ Bot started successfully!\n"
+                     f"📅 Next report at: 23:00 (UTC)\n"
+                     f"🔍 Monitoring: {len(SYMBOLS)} symbols",
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
     
     def load_api_keys(self):
         try:
@@ -90,15 +101,19 @@ class TradingMonitor:
             logging.warning(message)
         else:
             logging.info(message)
-    
+            
     def setup_daily_report(self):
         """جدولة التقرير اليومي"""
-        self.scheduler = BackgroundScheduler()
+        import pytz  # أضف هذا الاستيراد في أعلى الملف
+    
+        self.scheduler = BackgroundScheduler(timezone=pytz.UTC)  # تحديد المنطقة الزمنية
+    
         self.scheduler.add_job(
             self.send_daily_report,
             'cron',
-            hour=23,  # الساعة 11 مساءً
-            minute=0
+            hour=23,
+            minute=0,
+            timezone=pytz.UTC  # تحديد المنطقة الزمنية هنا أيضاً
         )
         self.scheduler.start()
         self.log_message("Daily report scheduler started")
@@ -122,7 +137,7 @@ class TradingMonitor:
             self.tg_bot.send_message(
                 chat_id=self.telegram_chat_id,
                 text=report,
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.MARKDOWN_V2
             )
             self.log_message("Daily report sent to Telegram")
         except Exception as e:
