@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import talib
 import ccxt
 import time
 import logging
@@ -9,6 +8,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import telegram
 from telegram import ParseMode
 import threading
+from ta.trend import EMAIndicator  # استيراد EMA من ta
+from ta.momentum import RSIIndicator  # استيراد RSI من ta
 
 # إعدادات الاستراتيجية
 SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT', 'ADA/USDT', 'DOGE/USDT']
@@ -198,9 +199,16 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         
-            df['fast_ema'] = talib.EMA(df['close'], timeperiod=FAST_EMA)
-            df['slow_ema'] = talib.EMA(df['close'], timeperiod=SLOW_EMA)
-            df['rsi'] = talib.RSI(df['close'], timeperiod=RSI_PERIOD)
+            # حساب المؤشرات باستخدام ta بدلاً من talib
+            ema_fast = EMAIndicator(close=df['close'], window=FAST_EMA)
+            df['fast_ema'] = ema_fast.ema_indicator()
+            
+            ema_slow = EMAIndicator(close=df['close'], window=SLOW_EMA)
+            df['slow_ema'] = ema_slow.ema_indicator()
+            
+            rsi_indicator = RSIIndicator(close=df['close'], window=RSI_PERIOD)
+            df['rsi'] = rsi_indicator.rsi()
+            
             df = df.dropna()
         
             last_row = df.iloc[-1]
@@ -301,6 +309,9 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
             return False
     
     def monitoring_loop(self):
+        # تأخير البدء لمدة 30 ثانية للسماح بتهيئة النظام
+        time.sleep(30)
+        
         while self.is_running:
             self.log_message("\n" + "="*40)
             self.log_message("Starting new market scan")
