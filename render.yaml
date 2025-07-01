@@ -2,7 +2,7 @@ services:
   - type: web
     name: crypto-trading-bot
     runtime: python
-    pythonVersion: "3.10"  # تم التغيير إلى 3.10
+    pythonVersion: "3.10"  # تغيير إلى 3.10
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
       pip install setuptools==68.0.0
