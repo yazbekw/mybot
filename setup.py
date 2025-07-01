@@ -12,6 +12,8 @@ setup(
         'requests==2.31.0',
         'APScheduler==3.10.1',
         'python-telegram-bot==20.6',
-        'python-dotenv==1.0.0'
-    ]
+        'python-dotenv==1.0.0',
+        'setuptools>=68.0.0'
+    ],
+    setup_requires=['setuptools>=68.0.0']
 )
