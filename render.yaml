@@ -3,15 +3,15 @@ services:
     name: crypto-trading-bot
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python map.py
+    startCommand: python bot_service.py >> bot.log 2>&1
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.7
       - key: COINEX_ACCESS_ID
-        valueFromGroup: coinex_api
+        value: your_coinex_access_id
       - key: COINEX_SECRET_KEY
-        valueFromGroup: coinex_api
+        value: your_coinex_secret_key
       - key: TELEGRAM_TOKEN
-        valueFromGroup: telegram
+        value: your_telegram_token
       - key: TELEGRAM_CHAT_ID
-        valueFromGroup: telegram
+        value: your_chat_id
