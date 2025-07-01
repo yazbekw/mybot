@@ -2,7 +2,7 @@ services:
   - type: web
     name: crypto-trading-bot
     runtime: python
-    pythonVersion: "3.10"  # استخدام إصدار Python 3.10 الثابت
+    pythonVersion: "3.10"  # استخدم 3.10 بدلاً من 3.13
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
       pip install -r requirements.txt
