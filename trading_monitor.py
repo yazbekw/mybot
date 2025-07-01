@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import ta  # تم استبدال talib بـ ta
 import ccxt
 import time
 import logging
@@ -8,8 +9,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import telegram
 from telegram import ParseMode
 import threading
-from ta.trend import EMAIndicator  # استيراد EMA من ta
-from ta.momentum import RSIIndicator  # استيراد RSI من ta
 
 # إعدادات الاستراتيجية
 SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT', 'ADA/USDT', 'DOGE/USDT']
@@ -191,24 +190,20 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
         
     def analyze_symbol(self, symbol):
         if not self.coinex_connected:
-            self.log_message("Cannot analyze symbol - not connected to CoinEx", "warning")
-            return
+            self.connect_coinex()  # محاولة إعادة الاتصال
+            if not self.coinex_connected:
+                self.log_message("Cannot analyze symbol - not connected to CoinEx", "warning")
+                return
         
         try:
             ohlcv = self.client.fetch_ohlcv(symbol, INTERVAL, limit=100)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         
-            # حساب المؤشرات باستخدام ta بدلاً من talib
-            ema_fast = EMAIndicator(close=df['close'], window=FAST_EMA)
-            df['fast_ema'] = ema_fast.ema_indicator()
-            
-            ema_slow = EMAIndicator(close=df['close'], window=SLOW_EMA)
-            df['slow_ema'] = ema_slow.ema_indicator()
-            
-            rsi_indicator = RSIIndicator(close=df['close'], window=RSI_PERIOD)
-            df['rsi'] = rsi_indicator.rsi()
-            
+            # استخدام مكتبة ta بدلاً من talib
+            df['fast_ema'] = ta.trend.ema_indicator(df['close'], window=FAST_EMA)
+            df['slow_ema'] = ta.trend.ema_indicator(df['close'], window=SLOW_EMA)
+            df['rsi'] = ta.momentum.rsi(df['close'], window=RSI_PERIOD)
             df = df.dropna()
         
             last_row = df.iloc[-1]
@@ -261,6 +256,8 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
         
         except Exception as e:
             self.log_message(f"Analysis error for {symbol}: {str(e)}", "error")
+            # إعادة الاتصال في حالة الخطأ
+            self.coinex_connected = False
         
     def place_order(self, symbol, side, price):
         try:
@@ -306,15 +303,18 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
         
         except Exception as e:
             self.log_message(f"Failed to place {side} order for {symbol}: {str(e)}", "error")
+            # إعادة الاتصال في حالة الخطأ
+            self.coinex_connected = False
             return False
     
     def monitoring_loop(self):
-        # تأخير البدء لمدة 30 ثانية للسماح بتهيئة النظام
-        time.sleep(30)
-        
         while self.is_running:
             self.log_message("\n" + "="*40)
             self.log_message("Starting new market scan")
+            
+            # الاتصال إذا لم يكن متصلاً
+            if not self.coinex_connected:
+                self.connect_coinex()
             
             for symbol in SYMBOLS:
                 if not self.is_running:
@@ -330,6 +330,10 @@ ${profit_loss:.2f} {'✅' if profit_loss >= 0 else '❌'}
         if not self.is_running:
             self.is_running = True
             self.log_message("Monitoring started...")
+            
+            # الاتصال بالبورصة
+            if not self.coinex_connected:
+                self.connect_coinex()
             
             # استخدام threading فقط في الوضع العادي
             if not self.is_headless:
