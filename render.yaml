@@ -2,9 +2,9 @@ services:
   - type: web
     name: crypto-trading-bot
     runtime: python
-    pythonVersion: "3.10"  # تغيير مهم!
+    pythonVersion: "3.10"  # هذا هو الحل الجذري
     buildCommand: |
-      python -m pip install --upgrade pip==23.3.1 setuptools==68.0.0 wheel==0.41.2
+      python -m pip install --upgrade pip setuptools wheel
       pip install -r requirements.txt
     startCommand: python bot_service.py
     envVars:
