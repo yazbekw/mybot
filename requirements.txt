@@ -1,7 +1,8 @@
+ccxt==2.1.75
 pandas==2.0.3
-python-telegram-bot==20.3
-apscheduler==3.10.1
-ccxt==4.1.59
-talib-binary==0.4.24
+numpy==1.24.4
+TA-Lib==0.4.24
+tkinter==0.1.0
 requests==2.31.0
-python-dotenv==1.0.0  # إضافة جديدة لإدارة متغيرات البيئة محلياً
+python-telegram-bot==13.15
+APScheduler==3.10.1
