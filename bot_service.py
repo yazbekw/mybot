@@ -1,4 +1,5 @@
-from map import TradingMonitor
+import pandas as pd
+from trading_monitor import TradingMonitor  # تأكد من أن الملف باسم trading_monitor.py
 import logging
 import time
 
