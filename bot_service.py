@@ -1,14 +1,23 @@
-import pandas as pd
 from trading_monitor import TradingMonitor
 import logging
 import time
+import sys
 
 class HeadlessMonitor(TradingMonitor):
     def __init__(self):
-        # إزالة أي مرجع لـ tkinter
+        # استدعاء المُنشئ الأب مع الوسيط الصحيح
         super().__init__(is_headless=True)
-        self.is_running = True
-        self.monitoring_loop()
+        
+        # بدء المراقبة
+        self.start_monitoring()
+        
+        # الحفاظ على البرنامج قيد التشغيل
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.stop_monitoring()
+            sys.exit(0)
         
     def log_message(self, message, level="info"):
         """تسجيل الرسائل فقط في ملف السجل"""
