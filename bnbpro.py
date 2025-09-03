@@ -33,6 +33,31 @@ class BNBTimeWeightIndicator:
         
         if telegram_token and chat_id:
             self.setup_telegram_bot(telegram_token)
+    def get_with_proxy(url, params, max_retries=3):
+        """الاتصال عبر proxy لتجنب الحظر"""
+        proxies = [
+            'https://proxy1.example.com:8080',
+            'https://proxy2.example.com:8080',
+            # يمكنك إضافة المزيد من الوكالات المجانية
+        ]
+    
+        for attempt in range(max_retries):
+            try:
+                proxy = random.choice(proxies)
+                response = requests.get(url, params=params, 
+                                      proxies={'https': proxy},
+                                      timeout=15,
+                                      headers=headers)
+                if response.status_code == 200:
+                    return response
+            except:
+                continue
+    
+        # إذا فشلت جميع الوكالات، حاول الاتصال المباشر
+        try:
+            return requests.get(url, params=params, timeout=15, headers=headers)
+        except:
+            return None
     
     def setup_telegram_bot(self, token):
         """إعداد بوت التلغرام"""
@@ -49,6 +74,7 @@ class BNBTimeWeightIndicator:
                 await self.bot.send_message(chat_id=self.chat_id, text=message)
             except Exception as e:
                 print(f"❌ خطأ في إرسال الرسالة: {e}")
+                
     
     async def send_telegram_image(self, image_path, caption=""):
         """إرسال صورة إلى التلغرام"""
@@ -67,9 +93,25 @@ class BNBTimeWeightIndicator:
                     await self.bot.send_document(chat_id=self.chat_id, document=document, caption=caption)
             except Exception as e:
                 print(f"❌ خطأ في إرسال الملف: {e}")
+                
 
     def fetch_historical_data(self, days=180):
         """جلب البيانات التاريخية من Binance API"""
+        print("📊 جلب البيانات التاريخية لـ BNB...")
+
+        # إضافة headers لتجنب الحظر
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://www.binance.com',
+            'Referer': 'https://www.binance.com/',
+        }
+    
+        end_time = int(datetime.now().timestamp() * 1000)
+        start_time = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
+
+        # ... باقي الكود ...
         print("📊 جلب البيانات التاريخية لـ BNB...")
     
         end_time = int(datetime.now().timestamp() * 1000)
@@ -516,5 +558,6 @@ if __name__ == "__main__":
         print(f"❌ خطأ: {str(e)}")
         import traceback
         traceback.print_exc()
+
 
 
