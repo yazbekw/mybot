@@ -396,8 +396,8 @@ class BNBTimeWeightIndicator:
 # الدالة الرئيسية غير المتزامنة
 async def main():
     # إعدادات التلغرام - ضع التوكن والآيدي الخاصين بك
-    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-    CHAT_ID = "YOUR_CHAT_ID"
+    TELEGRAM_TOKEN = "7925838105:AAF5HwcXewyhrtyEi3_EF4r2p_R4Q5iMBfg"
+    CHAT_ID = "1467259305"
     
     try:
         analyzer = BNBTimeWeightIndicator(telegram_token=TELEGRAM_TOKEN, chat_id=CHAT_ID)
@@ -461,3 +461,4 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"❌ خطأ: {e}")
+
