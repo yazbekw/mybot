@@ -71,15 +71,17 @@ class BNBTimeWeightIndicator:
     def fetch_historical_data(self, days=180):
         """جلب البيانات التاريخية من Binance API"""
         print("📊 جلب البيانات التاريخية لـ BNB...")
-        
+    
         end_time = int(datetime.now().timestamp() * 1000)
         start_time = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
-        
+    
         all_data = []
         current_time = start_time
-        total_days = (end_time - start_time) / (1000 * 60 * 60 * 24)
-        
-        with tqdm(total=total_days, desc="جلب البيانات") as pbar:
+    
+        # حساب العدد التقريبي للطلبات المطلوبة
+        total_requests = ((end_time - start_time) / (1000 * 60 * 5 * 1000)) + 1
+    
+        with tqdm(total=total_requests, desc="جلب البيانات") as pbar:
             while current_time < end_time:
                 url = "https://api.binance.com/api/v3/klines"
                 params = {
@@ -88,45 +90,93 @@ class BNBTimeWeightIndicator:
                     'limit': 1000,
                     'startTime': current_time
                 }
-                
+            
                 try:
                     response = requests.get(url, params=params, timeout=15)
-                    data = response.json()
-                    
-                    if not data:
+                
+                    if response.status_code != 200:
+                        print(f"⚠️ خطأ في الاستجابة: {response.status_code}")
                         break
-                        
-                    all_data.extend(data)
-                    current_time = data[-1][0] + 300000  # 5 دقائق
+                
+                    data = response.json()
+                
+                    if not data or not isinstance(data, list):
+                        print("⚠️ بيانات غير متوقعة من API")
+                        break
+                
+                    # التحقق من أن كل عنصر يحتوي على 12 عموداً كما هو متوقع
+                    valid_data = [item for item in data if len(item) >= 12]
+                
+                    if not valid_data:
+                        break
+                
+                    all_data.extend(valid_data)
+                    current_time = valid_data[-1][0] + 300000  # 5 دقائق بالمللي ثانية
                     pbar.update(1)
-                    time.sleep(0.1)
-                    
+                    time.sleep(0.2)  # تقليل معدل الطلبات
+                
                 except Exception as e:
                     print(f"⚠️ خطأ في جلب البيانات: {e}")
-                    break
-        
+                    time.sleep(2)  # انتظار قبل المحاولة مرة أخرى
+                    continue
+    
         if not all_data:
             raise Exception("❌ لم يتم جلب أي بيانات")
-        
-        # معالجة البيانات
+    
+        # معالجة البيانات مع التحقق من الصحة
         columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 
                   'close_time', 'quote_asset_volume', 'number_of_trades',
                   'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore']
-        
-        self.df = pd.DataFrame(all_data, columns=columns)
-        self.df['timestamp'] = pd.to_datetime(self.df['timestamp'], unit='ms')
-        self.df.set_index('timestamp', inplace=True)
-        
-        numeric_cols = ['open', 'high', 'low', 'close', 'volume']
-        for col in numeric_cols:
-            self.df[col] = pd.to_numeric(self.df[col])
-        
-        # حساب العوائد
-        self.df['returns'] = self.df['close'].pct_change()
-        
-        print(f"✅ تم جلب {len(self.df)} سجل للبيانات")
-        return self.df
     
+        try:
+            self.df = pd.DataFrame(all_data, columns=columns)
+        
+            # التحقق من أن البيانات ليست فارغة
+            if len(self.df) == 0:
+                raise Exception("❌ البيانات المجلوبة فارغة")
+        
+            # تحويل الطوابع الزمنية
+            self.df['timestamp'] = pd.to_datetime(self.df['timestamp'], unit='ms', errors='coerce')
+            self.df = self.df.dropna(subset=['timestamp'])
+            self.df.set_index('timestamp', inplace=True)
+        
+            # تحويل الأعمدة الرقمية
+            numeric_cols = ['open', 'high', 'low', 'close', 'volume']
+            for col in numeric_cols:
+                self.df[col] = pd.to_numeric(self.df[col], errors='coerce')
+        
+            # إزالة الصفوف ذات القيم NaN
+            self.df = self.df.dropna(subset=numeric_cols)
+        
+            # حساب العوائد
+            self.df['returns'] = self.df['close'].pct_change()
+        
+            print(f"✅ تم جلب {len(self.df)} سجل للبيانات")
+            print(f"📅 الفترة الزمنية: {self.df.index.min()} إلى {self.df.index.max()}")
+        
+            return self.df
+        
+        except Exception as e:
+            raise Exception(f"❌ خطأ في معالجة البيانات: {e}")
+
+    def validate_data(self):
+        """التحقق من صحة البيانات المجلوبة"""
+        if self.df is None or len(self.df) == 0:
+            raise Exception("❌ لا توجد بيانات للتحقق")
+    
+        # التحقق من الأعمدة المطلوبة
+        required_columns = ['open', 'high', 'low', 'close', 'volume', 'returns']
+        for col in required_columns:
+            if col not in self.df.columns:
+                raise Exception(f"❌ العمود {col} غير موجود في البيانات")
+    
+        # التحقق من عدم وجود قيم NaN كثيرة
+        nan_count = self.df['returns'].isna().sum()
+        if nan_count > len(self.df) * 0.1:  # أكثر من 10% قيم NaN
+            raise Exception(f"❌ الكثير من القيم المفقودة: {nan_count}")
+    
+        print(f"✅ التحقق من البيانات: {len(self.df)} صف، {nan_count} قيم NaN")
+
     def remove_outliers(self, data, threshold=3):
         """إزالة القيم المتطرفة باستخدام Z-Score"""
         if len(data) < 2:
@@ -433,17 +483,22 @@ async def main():
 
 # للتشغيل على Render
 if __name__ == "__main__":
-    # التشغيل على Render (بدون توكن التلغرام)
-    analyzer = BNBTimeWeightIndicator()
-    
     try:
+        analyzer = BNBTimeWeightIndicator()
+        
         # جلب البيانات
-        analyzer.fetch_historical_data(days=180)
+        print("🚀 بدء جلب البيانات...")
+        analyzer.fetch_historical_data(days=90)  # جرب 90 يوم أولاً
+        
+        # التحقق من البيانات
+        analyzer.validate_data()
         
         # حساب الأوزان
+        print("⚖️ حساب الأوزان...")
         analyzer.calculate_time_weights()
         
         # توليد التقرير
+        print("📈 توليد التقرير...")
         report = analyzer.generate_performance_report()
         
         # حفظ النتائج
@@ -453,12 +508,13 @@ if __name__ == "__main__":
         analyzer.visualize_results()
         
         print("🎉 تم الانتهاء بنجاح!")
-        print("\n📋 ملخص النتائج:")
-        print(f"   - إشارات شراء قوية: {len(report['best_buy_times'])}")
-        print(f"   - إشارات بيع قوية: {len(report['best_sell_times'])}")
-        print(f"   - متوسط وزن الشراء: {report['overall_stats']['avg_positive_weight']:.2f}")
-        print(f"   - متوسط وزن البيع: {report['overall_stats']['avg_negative_weight']:.2f}")
+        print(f"📊 عدد نقاط البيانات: {len(analyzer.df)}")
+        print(f"🟢 إشارات شراء قوية: {len(report['best_buy_times'])}")
+        print(f"🔴 إشارات بيع قوية: {len(report['best_sell_times'])}")
         
     except Exception as e:
-        print(f"❌ خطأ: {e}")
+        print(f"❌ خطأ: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
 
