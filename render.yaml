@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: trading-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: CHECK_INTERVAL
+        value: 15
+      - key: TOP_COINS_COUNT
+        value: 10
